@@ -1,0 +1,118 @@
+// First node setup
+import express ,{request, response} from 'express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+//import multer from 'multer';
+import xlsx from 'xlsx';
+import {user} from 'schema filepath mention'//assume user model
+
+const app = express();
+app.use(express.json());
+const port = 9000;
+
+app.get('/',(req:request,res:response)=>{
+    res.send('chk api');
+})
+app.listen(port,() =>{
+    console.log('server listening port', port);
+});
+
+//user Registration
+app.post('/register',async(req: request,res:response)=>{
+    try{
+    const {username,password} = req.body;
+    const hashpassword = await bcrypt.hash(password,10);
+    const existsuser = await user.findOne({username});
+    if(existsuser){
+        return res.status(400).json({message:'user already exists'})
+    }
+    const newuser = new user({
+        username,
+        password :hashpassword,
+    });
+    await newuser.save();
+    res.status(200).json({message:'user created'});
+    }
+    catch(err){
+        console.log('error',err);
+    }
+});
+
+//login api token generation
+app.post('/login',async (req: request, res:response)=>{
+    try{
+       const {username,password} = req.body;
+       if(!username ||!password ){
+           return res.status(400.json({message:'please provide name and password'});
+       }
+       
+       const validpass = await bcrypt.compare(password,user.password);
+       if(!validpass){
+           return  res.status(401).json({message:'Invalid password'});
+       }
+       const token = jwt.sign({username},'secretKey');
+       res.send({token});
+    }
+    catch(err){
+        console.log('err',err);
+    }
+});
+
+//chat import via excel
+interface ChatMessage{
+    sender:string;
+    message:string;
+}
+app.post('/chatimport',async(req:request,res:response)=>{
+    try{
+        
+        if(!req.file){
+            return res.status(400).json({message:'file not uploaded'})
+        }
+        const xlsheet = xslx.readFile(req.file.path);
+        const sheetname = workbook.sheetNames[0];
+        const sheet = workbook.Sheets[sheetname];
+        const exceldata = xlsx.utils.sheet_to_json(sheet);
+        const chatdata: ChatMessage[] = exceldata.map((row:any)=>{
+            sender:row.Sender,
+            message:row.message,
+        });
+        res.status(200).json({message:'chat imported'})
+    }catch(err){
+        console.log(err);
+    }
+})
+
+interface taskstatus{
+    id:number;
+    status = 'pending'|'completed'|'showall',
+}
+
+let task:Task[]=[
+    {id:1,status:'showall'},
+    {id:2,status:'completed'},
+    {id:3,status:'pending'}
+];
+app.post('/gettask',async(req:request, res:response)=>{
+    try{
+        const status = req.query.filter;
+        let filter :Task[];
+        
+        switch(status){
+            case 'completed':
+                filter = task.filter(task=>task.status ==='completed');
+                break;
+                case 'pending':
+                   filter = task.filter(task=>task.status ==='pending'); 
+                   break;
+                   case 'all':
+                default:
+                 filter = tasks;
+                 break;
+        }
+                res.json(filter);
+        }
+    }catch{
+        console.log(err)
+    }
+});
